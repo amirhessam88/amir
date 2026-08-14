@@ -57,6 +57,16 @@ main {
   font-size: 1.05rem;
 }
 
+.brand p a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.brand p a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
 .crumb {
   display: flex;
   justify-content: center;
