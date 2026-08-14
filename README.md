@@ -1,7 +1,7 @@
 <h1 align="center"><em>amir</em>: My AI Portfolio</h1>
 
 <p align="center">
-  <img src="assets/img/logo_color_clear.png" alt="amir" width="128" />
+  <img src="https://raw.githubusercontent.com/amirhessam88/amir/master/assets/img/logo_color_clear.png" alt="amir" width="128" />
 </p>
 
 <p align="center">
