@@ -1,0 +1,82 @@
+---
+description: Use numpydoc for all Python docstrings across the monorepo
+alwaysApply: true
+---
+
+# Numpydoc docstrings
+
+Across the whole monorepo (`libs/`, `apps/`, `projects/`, `services/`, `tools/`),
+all Python docstrings use **numpydoc** — not Google, not Sphinx classic, not free-form.
+
+## Where required
+
+- Public **modules**, **classes**, **methods**, and **functions**
+- Private helpers (`_foo`) get a short numpydoc summary; add sections only when useful
+- Tests may omit docstrings unless the test module/helpers need clarification
+
+## Shape
+
+```python
+def ask(*, question: str, config: RagConfig) -> QueryResult:
+    """Run a grounded question against the papers index.
+
+    Parameters
+    ----------
+    question : str
+        User question in natural language.
+    config : RagConfig
+        Runtime paths, models, and retrieval settings.
+
+    Returns
+    -------
+    QueryResult
+        Answer text plus citation list / markdown.
+
+    Raises
+    ------
+    IndexMissingError
+        If the Chroma collection is empty or missing.
+    OSError
+        If ``OPENAI_API_KEY`` is not set.
+
+    Examples
+    --------
+    >>> result = ask(question="What is a driver node?", config=config)
+    >>> print(result.answer)
+    """
+```
+
+```python
+@dataclass(frozen=True, kw_only=True)
+class Citation:
+    """A single retrieved source used to ground an answer.
+
+    Attributes
+    ----------
+    file_name : str
+        PDF file name (or path basename).
+    page : int or None
+        1-based page number when available.
+    """
+```
+
+## Sections
+
+| Section | Use when |
+|---------|----------|
+| summary (+ optional extended description) | Always |
+| `Parameters` | Function/method has parameters (skip `self` / `cls`) |
+| `Returns` / `Yields` | Returns or yields a meaningful value (`None` can be omitted) |
+| `Raises` | Documented failure modes callers should expect |
+| `Attributes` | Classes / dataclasses with public fields |
+| `Examples` | Non-obvious usage worth showing |
+| `Notes` / `See Also` | Rare; only when truly helpful |
+
+## Style notes
+
+- Types in docstrings may be prose-friendly (`int or None`, `list of Citation`) —
+  keep them aligned with the real annotations.
+- Prefer one-line summaries that start with a verb (“Return…”, “Build…”, “Raise…”).
+- Do not invent Google-style `Args:` / `Returns:` blocks.
+
+See also: `library-standards.mdc`, `comments.mdc` (numpydoc is the docs surface; avoid narrating comments).

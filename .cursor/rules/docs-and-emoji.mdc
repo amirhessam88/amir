@@ -1,0 +1,12 @@
+---
+description: Every product leaf needs docs + landing card; emoji + mermaid
+alwaysApply: true
+---
+
+# Docs contract
+
+- Every product under `apps/`, `libs/`, `projects/`, `services/` ships a Sphinx `docs/` node.
+- Add a card on the matching topology hub under `docs/landing/`
+  (`apps/` / `libs/` / `projects/` / `services/` / `docs/`) pointing at the published path prefix.
+- Narrative docs use emoji wayfinding and Mermaid diagrams for architecture / flows.
+- Build with `poe docs` → `site/`.

@@ -1,0 +1,4 @@
+working-directory: projects/papers-ingest
+package: papers-ingest
+python-versions: ["3.11", "3.12", "3.13"]
+run-docs: true

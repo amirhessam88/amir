@@ -1,0 +1,22 @@
+name: apps/papers-rag
+
+on:
+  pull_request:
+    paths:
+      - "apps/papers-rag/**"
+      - "libs/rag-core/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/_python-leaf.yml"
+      - ".github/workflows/apps-papers-rag.yml"
+  push:
+    branches: ["master"]
+    paths:
+      - "apps/papers-rag/**"
+      - "libs/rag-core/**"
+
+jobs:
+  python:
+    uses: ./.github/workflows/_python-leaf.yml
+    with:
+      working-directory: apps/papers-rag

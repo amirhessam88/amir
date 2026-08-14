@@ -1,0 +1,26 @@
+/* Shared Sphinx leaf footer — match docs landing signature. */
+.bottom-of-page .left-details {
+  font-size: 0;
+  line-height: 0;
+}
+
+.bottom-of-page .left-details > * {
+  display: none;
+}
+
+.bottom-of-page .left-details::before {
+  content: "Made with ❤️ and a lot of ☕️ ✨ 🧠 🚀";
+  display: block;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--color-foreground-muted);
+  margin-bottom: 0.35rem;
+}
+
+.bottom-of-page .left-details::after {
+  content: "Amirhessam Tahmassebi © · www.amirhessam.com";
+  display: block;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--color-foreground-muted);
+}

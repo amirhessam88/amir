@@ -1,0 +1,48 @@
+---
+description: amir standards — uv, typing, numpydoc, tests
+alwaysApply: true
+---
+
+# amir library standards
+
+## Tooling
+
+- Use **`uv`** for env/deps (`uv sync`, `uv add`, `uv lock`).
+- Use **`poe`** for project tasks (`uv tool install poethepoet`, then `poe <task>`).
+- Use **`ruff`** for formatting/lint and **`mypy`** for static types:
+
+```bash
+poe sync
+poe verify   # check + test
+poe docs
+poe upgrade  # or: poe upgrade ruff
+```
+
+## Typing (ruff ANN + mypy)
+
+- Every public and private function/method must have **full type annotations**.
+- Prefer precise types over `Any` (allowed at LlamaIndex / Streamlit boundaries).
+- Code must pass `poe check`; do not silence rules unless justified.
+
+## Docstrings (numpydoc)
+
+- Always use **numpydoc** across the monorepo; see `numpydoc.mdc`.
+- Include `Parameters`, `Returns`, `Raises`, `Attributes`, and `Examples` when useful.
+
+## Named arguments
+
+- Prefer **keyword arguments** at call sites across the monorepo; see `named-arguments.mdc`.
+- Multi-field dataclasses use `kw_only=True`.
+
+## Enums / constants
+
+- Prefer `Enum` / `StrEnum` / `IntEnum` over magic strings and ints; see `enums.mdc`.
+
+## Comments
+
+- Do not add comments unless they explain non-obvious intent; see `comments.mdc`.
+- Public APIs use numpydoc — that is the documentation surface, not inline chatter.
+
+## Classes
+
+- Prefer `@dataclass` / `@dataclass(frozen=True, kw_only=True)` for concrete classes.

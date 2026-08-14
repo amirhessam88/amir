@@ -1,0 +1,185 @@
+[project]
+name = "amir"
+version = "0.1.0"
+description = "Organizational monorepo for Amir's AI products"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Amirhessam Tahmassebi", email = "admin@amirhessam.com" },
+]
+requires-python = ">=3.11,<3.14"
+keywords = [
+    "ai",
+    "rag",
+    "llamaindex",
+    "portfolio",
+    "monorepo",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
+]
+dependencies = [
+    "llama-index>=0.12.0",
+    "llama-index-vector-stores-chroma>=0.4.0",
+    "llama-index-embeddings-huggingface>=0.4.0",
+    "llama-index-llms-openai>=0.3.0",
+    "chromadb>=0.5.0",
+    "sentence-transformers>=3.0",
+    "pypdf>=5.0",
+    "python-dotenv>=1.0",
+    "openai>=1.40",
+    "streamlit>=1.37",
+    "click>=8.1",
+    "rich>=13.0",
+]
+
+[project.scripts]
+papers-ingest = "papers_ingest.cli:main"
+papers-rag = "papers_rag.app:run"
+
+[project.urls]
+Homepage = "https://github.com/amirhessam88/amir"
+Repository = "https://github.com/amirhessam88/amir"
+Documentation = "https://amirhessam88.github.io/amir/"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/amir"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"libs/rag-core/src/rag" = "rag"
+"apps/papers-rag/src/papers_rag" = "papers_rag"
+"projects/papers-ingest/src/papers_ingest" = "papers_ingest"
+
+[tool.hatch.build.targets.sdist]
+only-include = [
+    "src/amir",
+    "libs/rag-core/src/rag",
+    "apps/papers-rag/src/papers_rag",
+    "projects/papers-ingest/src/papers_ingest",
+    "README.md",
+]
+
+[tool.uv]
+default-groups = ["dev"]
+
+[tool.uv.workspace]
+# services/* is reserved; add the glob when the first service leaf lands.
+members = [
+    "apps/*",
+    "libs/*",
+    "projects/*",
+]
+
+[tool.uv.sources]
+rag-core = { workspace = true }
+papers-rag = { workspace = true }
+papers-ingest = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "assertpy>=1.1",
+    "mypy>=1.11",
+    "poethepoet>=0.32",
+    "pytest>=8.3",
+    "pytest-cov>=5.0",
+    "ruff>=0.6",
+    "tox>=4.22",
+    "tox-uv>=1.25",
+    "python-dotenv>=1.0",
+]
+docs = [
+    "sphinx>=5.3",
+    "sphinx-autoapi>=3.0",
+    "sphinx-design>=0.3",
+    "myst-parser>=2.0",
+    "furo>=2024.1",
+    "sphinxcontrib-mermaid>=0.9",
+]
+
+# -- try `poe --help` for options
+# Task bodies live under tools/devtools and tools/buildtools.
+[tool.poe.tasks]
+
+# --- monorepo workspace ---
+
+[tool.poe.tasks.sync]
+help = "Sync the uv workspace from the lockfile (all groups + packages)"
+cmd = "python tools/buildtools/uv.py sync"
+
+[tool.poe.tasks.lock]
+help = "Refresh uv.lock without upgrading package versions"
+cmd = "python tools/buildtools/uv.py lock"
+
+[tool.poe.tasks.upgrade]
+help = "Upgrade uv.lock deps across the workspace, then sync (optional: package names)"
+cmd = "python tools/buildtools/uv.py upgrade ${packages}"
+args = [
+    { name = "packages", positional = true, multiple = true, default = "" },
+]
+
+[tool.poe.tasks.verify]
+help = "Monorepo gate: check + test"
+sequence = ["check", "test"]
+
+# --- engineer loop ---
+
+[tool.poe.tasks.greet]
+help = "Runtime user greetings"
+cmd = "python tools/devtools/greet.py"
+
+[tool.poe.tasks.clean]
+help = "Remove ignored caches, coverage, build, and docs artifacts"
+cmd = "python tools/buildtools/clean.py"
+
+[tool.poe.tasks.mypy]
+help = "Lint types via mypy"
+cmd = "python tools/devtools/mypy.py"
+
+[tool.poe.tasks.format]
+help = "Format code and auto-fix ruff lint (including import order)"
+sequence = [
+    { cmd = "python tools/devtools/ruff.py format" },
+    { cmd = "python tools/devtools/ruff.py check --fix" },
+]
+
+[tool.poe.tasks.check]
+help = "Check all linting steps."
+sequence = [
+    "greet",
+    { cmd = "python tools/devtools/ruff.py format --check" },
+    { cmd = "python tools/devtools/ruff.py check" },
+    { cmd = "poe mypy" },
+]
+
+[tool.poe.tasks.test]
+help = "Run unit-tests via pytest across all leaves"
+cmd = "python tools/devtools/test.py"
+
+[tool.poe.tasks.tox]
+help = "Run check + test across Python versions via tox"
+cmd = "python tools/devtools/tox.py"
+
+[tool.poe.tasks.docs]
+help = "Build docs super-app landing + all product Sphinx sites into site/"
+cmd = "python tools/buildtools/docs.py"
+
+# --- product entrypoints ---
+
+[tool.poe.tasks.ingest-papers]
+help = "Ingest assets/pdf/papers into the local Chroma index"
+cmd = "papers-ingest"
+
+[tool.poe.tasks.run-papers-rag]
+help = "Launch the Papers RAG Streamlit chat app"
+cmd = "papers-rag"

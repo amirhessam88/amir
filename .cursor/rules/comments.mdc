@@ -1,0 +1,38 @@
+---
+description: Only add code comments when they are truly needed
+alwaysApply: true
+---
+
+# Comments
+
+Do **not** sprinkle comments through the codebase by default. Prefer clear names,
+small functions, and numpydoc on public APIs over inline narration.
+
+## When to comment
+
+- Non-obvious intent, trade-offs, or constraints that the code alone cannot show
+- Subtle bugs / edge cases (why a guard exists, why an ordering matters)
+- Workarounds for upstream / framework quirks
+- `# noqa` / type ignores only with a short justification when required
+
+## When not to comment
+
+- Restating what the next line obviously does
+- Section banners (`# --- helpers ---`) or changelog-style notes
+- TODOs that belong in an issue / PR description
+- Docstring duplication immediately above the same logic
+
+```python
+# BAD
+# Get the user name from the environment
+user = os.environ.get("USER", "friend")
+
+# GOOD (no comment — the code is clear)
+user = os.environ.get("USER", "friend")
+
+# GOOD (comment earns its place)
+# LlamaIndex / pypdf often use 0-based page; keep label as-is if >= 1
+page = raw_page + 1 if raw_page == 0 else raw_page
+```
+
+If a comment is needed, keep it one short line and explain **why**, not **what**.

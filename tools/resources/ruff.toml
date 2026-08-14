@@ -1,0 +1,46 @@
+# https://docs.astral.sh/ruff/configuration/
+# Paths are relative to this file (tools/resources/).
+
+line-length = 100
+target-version = "py311"
+src = [
+    "../../src",
+    "../../libs/rag-core/src",
+    "../../apps/papers-rag/src",
+    "../../projects/papers-ingest/src",
+    "../../tools",
+]
+extend-exclude = [
+    "../../.data",
+    "../../.venv",
+    "../../site",
+    "**/docs/_build",
+]
+
+[lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+    "ANN", # type annotations
+]
+ignore = [
+    "ANN401", # Allow Any at LlamaIndex / Streamlit boundaries
+]
+
+[lint.per-file-ignores]
+"**/tests/**/*.py" = ["ANN"]
+"**/docs/**/*.py" = ["ANN"]
+
+[lint.isort]
+known-first-party = ["amir", "rag", "papers_rag", "papers_ingest"]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+docstring-code-format = true
