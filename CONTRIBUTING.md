@@ -1,18 +1,18 @@
-# 🤝 Contributing to amir
+# 🤝 Contributing
 
 Thanks for helping keep this monorepo healthy. Humans and agents follow the same loop.
 
 ## 🧰 Toolchain
 
-| Tool | Role |
-|------|------|
-| **uv** | Workspace installs + lockfile |
-| **poethepoet** | Task runner (`poe …`) |
-| **ruff** | Format + lint |
-| **mypy** | Static types |
-| **pytest** + **assertpy** | Tests |
-| **tox** + **tox-uv** | Multi-Python matrix |
-| **Sphinx** + **Furo** | Per-product docs |
+| Tool                      | Role                          |
+| ------------------------- | ----------------------------- |
+| **uv**                    | Workspace installs + lockfile |
+| **poethepoet**            | Task runner (`poe …`)         |
+| **ruff**                  | Format + lint                 |
+| **mypy**                  | Static types                  |
+| **pytest** + **assertpy** | Tests                         |
+| **tox** + **tox-uv**      | Multi-Python matrix           |
+| **Sphinx** + **Furo**     | Per-product docs              |
 
 ```bash
 uv tool install poethepoet
@@ -31,6 +31,9 @@ Useful monorepo tasks: `poe sync`, `poe lock`, `poe upgrade` (all or named packa
 - Libs never import apps/projects/services.
 - Distro name is kebab-case (`rag-core`); import path replaces `-` with `.` (`rag.core`).
 - Every product leaf ships a Sphinx `docs/` node and a card on `docs/landing/`.
+
+Topology blueprint:
+[Building an Org Monorepo](https://www.amirhessam.com/two-cents/building-an-org-monorepo.html).
 
 ## ✍️ Style
 

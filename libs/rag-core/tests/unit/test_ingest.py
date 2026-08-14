@@ -5,7 +5,8 @@ from pathlib import Path
 from assertpy import assert_that
 
 from rag.core.citations import FileMetadataKey, PageMetadataKey
-from rag.core.ingest import list_pdf_paths, load_pdf_documents
+from rag.core.ingest import load_pdf_documents
+from rag.core.loaders import list_pdf_paths
 
 
 def test_list_pdf_paths__sorted__returns_pdfs(tmp_path: Path) -> None:
@@ -64,7 +65,7 @@ def test_load_pdf_documents__pages__sets_metadata(
                 _FakePage(None),
             ]
 
-    monkeypatch.setattr("rag.core.ingest.PdfReader", _FakeReader)
+    monkeypatch.setattr("rag.core.loaders.PdfReader", _FakeReader)
     docs = load_pdf_documents(pdf_paths=[pdf])
     assert_that(docs).is_length(1)
     assert_that(docs[0].text).contains("Driver nodes")
@@ -87,7 +88,7 @@ def test_load_pdf_documents__empty_corpus__raises(
             _ = path
             self.pages = [_FakePage("   too short   ")]
 
-    monkeypatch.setattr("rag.core.ingest.PdfReader", _FakeReader)
+    monkeypatch.setattr("rag.core.loaders.PdfReader", _FakeReader)
     try:
         load_pdf_documents(pdf_paths=[pdf])
         raise AssertionError("expected FileNotFoundError")
@@ -117,7 +118,7 @@ def test_load_pdf_documents__figure_dump__skipped(
             _ = path
             self.pages = [_FakePage(prose), _FakePage(junk)]
 
-    monkeypatch.setattr("rag.core.ingest.PdfReader", _FakeReader)
+    monkeypatch.setattr("rag.core.loaders.PdfReader", _FakeReader)
     docs = load_pdf_documents(pdf_paths=[pdf])
     assert_that(docs).is_length(1)
     assert_that(docs[0].text).contains("Driver nodes")

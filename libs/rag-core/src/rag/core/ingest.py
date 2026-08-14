@@ -1,4 +1,4 @@
-"""PDF ingest pipeline: load → chunk → embed → Chroma."""
+"""PDF ingest pipeline: load → chunk → embed → Chroma (LlamaIndex path)."""
 
 from __future__ import annotations
 
@@ -14,12 +14,11 @@ from llama_index.core.embeddings import BaseEmbedding
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.vector_stores.chroma import ChromaVectorStore
-from pypdf import PdfReader
 
 from rag.core.catalog import catalog_from_documents, write_paper_catalog
-from rag.core.citations import FileMetadataKey, PageMetadataKey
 from rag.core.config import RagConfig
-from rag.core.text_quality import is_prose_text
+from rag.core.loaders import list_pdf_paths, load_pdf_pages
+from rag.core.strategy import RagStrategy
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -60,39 +59,8 @@ def build_embed_model(*, config: RagConfig) -> HuggingFaceEmbedding:
     return HuggingFaceEmbedding(model_name=config.embed_model_name)
 
 
-def list_pdf_paths(*, papers_dir: Path) -> list[Path]:
-    """List PDF files under ``papers_dir`` (non-recursive).
-
-    Parameters
-    ----------
-    papers_dir : Path
-        Directory containing PDFs.
-
-    Returns
-    -------
-    list of Path
-        Sorted PDF paths.
-
-    Raises
-    ------
-    FileNotFoundError
-        If the directory does not exist or contains no PDFs.
-    """
-    if not papers_dir.is_dir():
-        raise FileNotFoundError(f"Papers directory not found: {papers_dir}")
-    paths = sorted(papers_dir.glob("*.pdf"))
-    if not paths:
-        raise FileNotFoundError(f"No PDF files found in {papers_dir}")
-    return paths
-
-
 def load_pdf_documents(*, pdf_paths: Sequence[Path]) -> list[Document]:
-    """Extract per-page text from PDFs with pypdf.
-
-    LlamaIndex ``SimpleDirectoryReader`` has no PDF reader registered in this
-    stack, so it would decode raw PDF bytes as UTF-8 and index binary garbage.
-    Pages that fail ``is_prose_text`` (figures, dedications, glyph salad) are
-    skipped.
+    """Extract per-page LlamaIndex documents from PDFs.
 
     Parameters
     ----------
@@ -109,31 +77,10 @@ def load_pdf_documents(*, pdf_paths: Sequence[Path]) -> list[Document]:
     FileNotFoundError
         If no page yields extractable text.
     """
-    documents: list[Document] = []
-    for pdf_path in pdf_paths:
-        reader = PdfReader(pdf_path)
-        for index, page in enumerate(reader.pages):
-            raw = page.extract_text() or ""
-            if not is_prose_text(text=raw):
-                continue
-            page_number = index + 1
-            documents.append(
-                Document(
-                    text=raw,
-                    metadata={
-                        FileMetadataKey.FILE_NAME.value: pdf_path.name,
-                        FileMetadataKey.FILE_PATH.value: str(pdf_path),
-                        PageMetadataKey.PAGE_LABEL.value: str(page_number),
-                        PageMetadataKey.PAGE.value: page_number,
-                    },
-                ),
-            )
-    if not documents:
-        raise FileNotFoundError(
-            "No extractable text found in the PDF corpus. "
-            "Check that the files are text PDFs, not image-only scans.",
-        )
-    return documents
+    return [
+        Document(text=page.text, metadata=dict(page.metadata))
+        for page in load_pdf_pages(pdf_paths=pdf_paths)
+    ]
 
 
 def _reset_collection(*, config: RagConfig) -> Any:
@@ -145,13 +92,13 @@ def _reset_collection(*, config: RagConfig) -> Any:
     return client.get_or_create_collection(name=config.collection_name)
 
 
-def ingest_papers(
+def ingest_llamaindex(
     *,
     config: RagConfig,
     embed_model: BaseEmbedding | None = None,
     rebuild: bool = True,
 ) -> IngestResult:
-    """Ingest PDFs from ``config.papers_dir`` into persistent Chroma.
+    """Ingest PDFs with LlamaIndex into persistent Chroma.
 
     Parameters
     ----------
@@ -203,4 +150,41 @@ def ingest_papers(
         nodes=node_count,
         chroma_dir=config.chroma_dir,
         collection_name=config.collection_name,
+    )
+
+
+def ingest_papers(
+    *,
+    config: RagConfig,
+    embed_model: BaseEmbedding | None = None,
+    rebuild: bool = True,
+) -> IngestResult:
+    """Ingest PDFs using ``config.strategy``.
+
+    Parameters
+    ----------
+    config : RagConfig
+        Paths, chunking, model settings, and orchestration strategy.
+    embed_model : BaseEmbedding or None
+        Optional LlamaIndex embedder (ignored by other backends).
+    rebuild : bool
+        When True, delete the existing collection before writing.
+
+    Returns
+    -------
+    IngestResult
+        Counts and paths for the run.
+    """
+    if config.strategy is RagStrategy.LLAMAINDEX:
+        return ingest_llamaindex(
+            config=config,
+            embed_model=embed_model,
+            rebuild=rebuild,
+        )
+    from rag.core.backends.registry import get_backend
+
+    return get_backend(strategy=config.strategy).ingest(
+        config=config,
+        rebuild=rebuild,
+        embed_model=embed_model,
     )

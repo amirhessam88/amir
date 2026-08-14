@@ -9,6 +9,8 @@ from typing import Final
 
 from dotenv import load_dotenv
 
+from rag.core.strategy import RAG_STRATEGY_ENV, RagStrategy, index_dir_for
+
 PAPERS_DIR_ENV: Final = "PAPERS_DIR"
 CHROMA_DIR_ENV: Final = "CHROMA_DIR"
 CHROMA_COLLECTION_ENV: Final = "CHROMA_COLLECTION"
@@ -93,6 +95,8 @@ class RagConfig:
         SentenceSplitter overlap.
     similarity_top_k : int
         Retrieval top-k for the query engine.
+    strategy : RagStrategy
+        In-process orchestration backend (LlamaIndex or LangChain).
     """
 
     papers_dir: Path
@@ -103,15 +107,23 @@ class RagConfig:
     chunk_size: int = DEFAULT_CHUNK_SIZE
     chunk_overlap: int = DEFAULT_CHUNK_OVERLAP
     similarity_top_k: int = DEFAULT_SIMILARITY_TOP_K
+    strategy: RagStrategy = RagStrategy.LLAMAINDEX
 
     @classmethod
-    def from_env(cls, *, repo_root: Path | None = None) -> RagConfig:
+    def from_env(
+        cls,
+        *,
+        repo_root: Path | None = None,
+        strategy: RagStrategy | None = None,
+    ) -> RagConfig:
         """Build config from environment variables with repo-relative defaults.
 
         Parameters
         ----------
         repo_root : Path or None
             Monorepo root. Discovered automatically when omitted.
+        strategy : RagStrategy or None
+            Orchestration backend. Defaults to ``RAG_STRATEGY`` or LlamaIndex.
 
         Returns
         -------
@@ -119,12 +131,14 @@ class RagConfig:
             Resolved configuration.
         """
         root = repo_root or find_repo_root()
+        chosen = strategy or RagStrategy(
+            os.environ.get(RAG_STRATEGY_ENV, RagStrategy.LLAMAINDEX.value),
+        )
         papers = Path(
             os.environ.get(PAPERS_DIR_ENV, root / "assets" / "pdf" / "papers"),
         )
-        chroma = Path(
-            os.environ.get(CHROMA_DIR_ENV, root / ".data" / "chroma" / "papers"),
-        )
+        chroma_raw = os.environ.get(CHROMA_DIR_ENV)
+        chroma = Path(chroma_raw) if chroma_raw else index_dir_for(repo_root=root, strategy=chosen)
         if not papers.is_absolute():
             papers = (root / papers).resolve()
         if not chroma.is_absolute():
@@ -147,6 +161,7 @@ class RagConfig:
             similarity_top_k=int(
                 os.environ.get(SIMILARITY_TOP_K_ENV, str(DEFAULT_SIMILARITY_TOP_K)),
             ),
+            strategy=chosen,
         )
 
     def ensure_dirs(self) -> None:

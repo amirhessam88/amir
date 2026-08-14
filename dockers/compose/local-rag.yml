@@ -1,6 +1,7 @@
-# Local Papers RAG stack.
+# Local Papers RAG stack (LlamaIndex / LangChain + Streamlit).
 # Usage (from repo root):
 #   docker compose -f dockers/compose/local-rag.yml up --build
+# Langflow is a separate studio: poe run-langflow (uv tool; Docker optional)
 services:
   papers-rag:
     build:
@@ -10,7 +11,7 @@ services:
       - "8501:8501"
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      CHROMA_DIR: /data/chroma/papers
+      CHROMA_DIR: /data/indexes/llamaindex
       PAPERS_DIR: /app/assets/pdf/papers
     volumes:
-      - ../../.data/chroma/papers:/data/chroma/papers
+      - ../../.data/indexes:/data/indexes

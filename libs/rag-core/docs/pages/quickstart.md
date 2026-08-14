@@ -10,9 +10,11 @@ print(result.answer)
 print(result.citations_markdown)
 ```
 
-Prefer the CLIs for day-to-day work:
+`ask()` routes corpus and author questions through `catalog.json` before vector
+search. Pipeline details:
+[RAG stack](https://amirhessam88.github.io/amir/architecture/rag-stack.html).
 
 ```bash
-poe ingest-papers
-poe run-papers-rag
+poe ingest-papers --strategy llamaindex
+poe ingest-papers --strategy langchain
 ```

@@ -7,8 +7,10 @@ from assertpy import assert_that
 from click.testing import CliRunner
 
 from papers_ingest.cli import main
+from rag.core.backends.protocol import IngestNotSupportedError
 from rag.core.config import RagConfig
 from rag.core.ingest import IngestResult
+from rag.core.strategy import RagStrategy
 
 
 def test_main__success__exits_zero(tmp_path: Path) -> None:
@@ -98,6 +100,64 @@ def test_main__defaults_from_env__exits_zero(tmp_path: Path) -> None:
     assert_that(ingest.call_args.kwargs["config"]).is_equal_to(config)
 
 
+def test_main__strategy_flag__passed_to_config(tmp_path: Path) -> None:
+    papers = tmp_path / "papers"
+    papers.mkdir()
+    (papers / "a.pdf").write_bytes(b"%PDF")
+    config = RagConfig(
+        papers_dir=papers,
+        chroma_dir=tmp_path / "lc",
+        strategy=RagStrategy.LANGCHAIN,
+    )
+    result_obj = IngestResult(
+        documents=1,
+        nodes=1,
+        chroma_dir=config.chroma_dir,
+        collection_name="papers",
+    )
+    runner = CliRunner()
+    with (
+        patch("papers_ingest.cli.ingest_papers", return_value=result_obj) as ingest,
+        patch("papers_ingest.cli.RagConfig.from_env", return_value=config),
+    ):
+        result = runner.invoke(main, ["--strategy", "langchain", "--papers-dir", str(papers)])
+    assert_that(result.exit_code).is_equal_to(0)
+    assert_that(result.output).contains("langchain")
+    ingest.assert_called_once()
+
+
+def test_main__strategy_all__runs_ingestible(tmp_path: Path) -> None:
+    papers = tmp_path / "papers"
+    papers.mkdir()
+    (papers / "a.pdf").write_bytes(b"%PDF")
+    base = RagConfig(papers_dir=papers, chroma_dir=tmp_path / "ignored")
+    result_obj = IngestResult(
+        documents=1,
+        nodes=1,
+        chroma_dir=tmp_path / "x",
+        collection_name="papers",
+    )
+    runner = CliRunner()
+    with (
+        patch("papers_ingest.cli.ingest_papers", return_value=result_obj) as ingest,
+        patch("papers_ingest.cli.RagConfig.from_env", return_value=base),
+        patch("papers_ingest.cli.find_repo_root", return_value=tmp_path),
+    ):
+        result = runner.invoke(main, ["--strategy", "all", "--papers-dir", str(papers)])
+    assert_that(result.exit_code).is_equal_to(0)
+    assert_that(ingest.call_count).is_equal_to(2)
+
+
+def test_main__strategy_all_with_chroma_dir__exits_one(tmp_path: Path) -> None:
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["--strategy", "all", "--chroma-dir", str(tmp_path / "one")],
+    )
+    assert_that(result.exit_code).is_equal_to(1)
+    assert_that(result.output).contains("--chroma-dir")
+
+
 def test_main__failure__exits_one(tmp_path: Path) -> None:
     papers = tmp_path / "papers"
     papers.mkdir()
@@ -107,3 +167,53 @@ def test_main__failure__exits_one(tmp_path: Path) -> None:
         result = runner.invoke(main, ["--papers-dir", str(papers)])
     assert_that(result.exit_code).is_equal_to(1)
     assert_that(result.output).contains("Ingest failed")
+
+
+def test_main__ingest_not_supported__exits_one(tmp_path: Path) -> None:
+    papers = tmp_path / "papers"
+    papers.mkdir()
+    (papers / "a.pdf").write_bytes(b"%PDF")
+    runner = CliRunner()
+    with patch(
+        "papers_ingest.cli.ingest_papers",
+        side_effect=IngestNotSupportedError("studio"),
+    ):
+        result = runner.invoke(main, ["--papers-dir", str(papers)])
+    assert_that(result.exit_code).is_equal_to(1)
+    assert_that(result.output).contains("studio")
+
+
+def test_main__strategy_all__without_papers_dir(tmp_path: Path) -> None:
+    papers = tmp_path / "papers"
+    papers.mkdir()
+    base = RagConfig(papers_dir=papers, chroma_dir=tmp_path / "ignored")
+    result_obj = IngestResult(
+        documents=1,
+        nodes=1,
+        chroma_dir=tmp_path / "x",
+        collection_name="papers",
+    )
+    runner = CliRunner()
+    with (
+        patch("papers_ingest.cli.ingest_papers", return_value=result_obj) as ingest,
+        patch("papers_ingest.cli.RagConfig.from_env", return_value=base),
+        patch("papers_ingest.cli.find_repo_root", return_value=tmp_path),
+    ):
+        result = runner.invoke(main, ["--strategy", "all"])
+    assert_that(result.exit_code).is_equal_to(0)
+    assert_that(ingest.call_count).is_equal_to(2)
+
+
+def test_main__strategy_all__failure__exits_one(tmp_path: Path) -> None:
+    papers = tmp_path / "papers"
+    papers.mkdir()
+    (papers / "a.pdf").write_bytes(b"%PDF")
+    base = RagConfig(papers_dir=papers, chroma_dir=tmp_path / "ignored")
+    runner = CliRunner()
+    with (
+        patch("papers_ingest.cli.ingest_papers", side_effect=RuntimeError("boom")),
+        patch("papers_ingest.cli.RagConfig.from_env", return_value=base),
+        patch("papers_ingest.cli.find_repo_root", return_value=tmp_path),
+    ):
+        result = runner.invoke(main, ["--strategy", "all", "--papers-dir", str(papers)])
+    assert_that(result.exit_code).is_equal_to(1)

@@ -18,42 +18,44 @@
   <a href="https://amirhessam88.github.io/amir/"><img alt="Docs site" src="https://img.shields.io/badge/docs-GitHub%20Pages-3d9b6a" /></a>
 </p>
 
-AI portfolio monorepo: shared libs, Streamlit apps, ingest jobs, and a docs super-app. An open-source-first RAG stack over my research papers, with `uv` workspaces and an enforceable import DAG — the same shapes I shipped in production, smaller so you can see the wiring.
+An **org monorepo** for AI products: shared libraries, apps, batch jobs, and a
+docs hub. `apps/` and `projects/` depend on `libs/` only. The first product is a
+papers RAG stack — runbooks, APIs, and architecture live in the docs.
 
-## ✨ What’s inside
+## 📚 Docs
 
-| Path                                                | Product                                            | Docs                                                                |
-| --------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------- |
-| [`libs/rag-core`](libs/rag-core/)                   | LlamaIndex + Chroma + local embeddings + citations | [rag-core](https://amirhessam88.github.io/amir/rag-core/)           |
-| [`projects/papers-ingest`](projects/papers-ingest/) | PDF → vector index CLI                             | [papers-ingest](https://amirhessam88.github.io/amir/papers-ingest/) |
-| [`apps/papers-rag`](apps/papers-rag/)               | Streamlit query chat                               | [papers-rag](https://amirhessam88.github.io/amir/papers-rag/)       |
+**[amirhessam88.github.io/amir](https://amirhessam88.github.io/amir/)** is the
+front door (topology cards → each product). Locally: `poe docs` → `site/index.html`.
 
-```mermaid
-flowchart LR
-  PDFs["assets/pdf/papers"] --> Ingest["papers-ingest"]
-  Ingest --> Chroma["Chroma local"]
-  Chroma --> App["papers-rag Streamlit"]
-  App --> OpenAI["OpenAI GPT"]
-  Embed["bge-small local"] --> Ingest
-  Embed --> App
-  Core["libs/rag-core"] --> Ingest
-  Core --> App
-```
+| Place | Where |
+| ----- | ----- |
+| Architecture | [topology](https://amirhessam88.github.io/amir/architecture/), [RAG stack](https://amirhessam88.github.io/amir/architecture/rag-stack.html), [toolchain](https://amirhessam88.github.io/amir/architecture/toolchain.html) |
+| Products | [rag-core](https://amirhessam88.github.io/amir/rag-core/), [papers-rag](https://amirhessam88.github.io/amir/papers-rag/), [papers-ingest](https://amirhessam88.github.io/amir/papers-ingest/) |
+| Contribute | [CONTRIBUTING.md](CONTRIBUTING.md) |
 
-Topology is strict: `apps/` and `projects/` may depend on `libs/` only. Full DAG and ADRs live in the [architecture portal](https://amirhessam88.github.io/amir/architecture/).
+## 🗺️ Layout
 
-## 🚀 Quick start
+| Path | Role |
+| ---- | ---- |
+| `apps/` | User-facing UIs and CLIs |
+| `libs/` | Shared packages (kebab distro → nested import) |
+| `projects/` | Domain jobs and ingest CLIs |
+| `services/` | Reserved for network services |
+| `tools/` | `poe` tasks and shared configs |
+| `dockers/` | Base images and compose |
+| `docs/` | Landing hub + architecture portal |
+
+## 🚀 Local loop
 
 ```bash
 uv tool install poethepoet
-poe sync                      # install workspace from uv.lock
-cp .env.example .env          # set OPENAI_API_KEY
-poe ingest-papers             # first run downloads the embedding model
-poe run-papers-rag            # open the Streamlit chat
-poe docs                      # build the docs super-app into site/
+poe sync      # install the workspace from uv.lock
+poe verify    # ruff + mypy + tests
+poe docs      # build the docs super-app into site/
 ```
 
-Then open `site/index.html` — or the published hub at [amirhessam88.github.io/amir](https://amirhessam88.github.io/amir/).
+Product runbooks are in the docs linked above. Clone this repo for PDFs,
+Docker, and the developer loop.
 
 ## 📦 PyPI
 
@@ -61,42 +63,5 @@ Then open `site/index.html` — or the published hub at [amirhessam88.github.io/
 pip install amir
 ```
 
-One wheel. It bundles `rag.core`, `papers_rag`, and `papers_ingest` (APIs plus the `papers-ingest` / `papers-rag` CLIs). Not a git checkout: no docs portal, no `poe` toolchain, no paper PDFs. Leaf dirs stay workspace packages locally; they are not published on their own.
-
-```bash
-export OPENAI_API_KEY=...
-export PAPERS_DIR=/path/to/pdfs
-export CHROMA_DIR=/path/to/chroma
-papers-ingest
-papers-rag
-```
-
-Clone this repo when you want the full org (docs, PDFs, Docker, developer loop).
-
-## 🆓 Free / OSS stack
-
-| Layer         | Choice                           | Cost     |
-| ------------- | -------------------------------- | -------- |
-| Orchestration | LlamaIndex                       | OSS      |
-| Embeddings    | `BAAI/bge-small-en-v1.5` (local) | Free     |
-| Vector DB     | Chroma (persistent dir)          | Free     |
-| LLM chat      | OpenAI API                       | Your key |
-| Docs hosting  | GitHub Pages                     | Free     |
-
-## 🧪 Quality
-
-`poe test` gates **100%** branch coverage on `amir`, `rag.core`, `papers_rag`, and `papers_ingest`. CI runs that suite on Ubuntu and macOS across Python 3.11–3.13, then uploads `xmlcov/coverage.xml` to [Codecov](https://codecov.io/gh/amirhessam88/amir).
-
-```bash
-poe verify    # check (ruff + mypy) + test
-```
-
-Same gate CI runs. Dep upgrades: `poe upgrade` (or `poe upgrade ruff`). See [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## 📚 Docs
-
-| Hub           | URL                                                                  |
-| ------------- | -------------------------------------------------------------------- |
-| Landing       | [amirhessam88.github.io/amir](https://amirhessam88.github.io/amir/)  |
-| Architecture  | […/architecture/](https://amirhessam88.github.io/amir/architecture/) |
-| Local preview | `poe docs` → `site/index.html`                                       |
+One wheel; leaf packages are not published on their own. Env vars and CLIs:
+[toolchain](https://amirhessam88.github.io/amir/architecture/toolchain.html).

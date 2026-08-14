@@ -8,7 +8,7 @@ Day-to-day engineer loop entrypoints. Root `poe` tasks call these scripts.
 | `ruff.py` | `poe format` / check | Format + lint |
 | `mypy.py` | `poe mypy` | Static types |
 | `test.py` | `poe test` | Pytest + 100% coverage gate |
-| `tox.py` | `poe tox` | Multi-Python matrix |
+| `langflow.py` | `poe run-langflow` | Isolated Langflow studio (`uv tool run`) |
 
 ```bash
 poe format   # ruff format + ruff check --fix (imports)

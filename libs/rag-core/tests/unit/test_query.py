@@ -12,11 +12,28 @@ from rag.core.citations import Citation
 from rag.core.config import OPENAI_API_KEY_ENV, RagConfig
 from rag.core.query import (
     ProseNodePostprocessor,
+    QueryResult,
     ask,
     build_llm,
     build_query_engine,
     require_openai_api_key,
 )
+from rag.core.strategy import RagStrategy
+
+
+def test_ask__langchain_strategy__dispatches(tmp_path) -> None:
+    config = RagConfig(
+        papers_dir=tmp_path,
+        chroma_dir=tmp_path / "chroma",
+        strategy=RagStrategy.LANGCHAIN,
+    )
+    expected = QueryResult(answer="lc", citations=[], citations_markdown="")
+    backend = MagicMock()
+    backend.ask.return_value = expected
+    with patch("rag.core.query.get_backend", return_value=backend):
+        result = ask(question="What is a driver node?", config=config)
+    backend.ask.assert_called_once()
+    assert_that(result).is_equal_to(expected)
 
 
 def test_require_openai_api_key__missing__raises(monkeypatch) -> None:
@@ -96,6 +113,44 @@ def test_ask__corpus_question__uses_catalog_not_engine(tmp_path) -> None:
     assert_that(result.answer).contains("Applied machine learning")
     assert_that(result.citations).is_length(2)
     assert_that(result.citations_markdown).contains("xgb-pfas-2022.pdf")
+
+
+def test_ask__author_question__uses_catalog_not_engine(tmp_path) -> None:
+    config = RagConfig(papers_dir=tmp_path, chroma_dir=tmp_path / "chroma")
+    catalog = PaperCatalog(
+        papers=(
+            PaperCatalogEntry(
+                file_name="spie-2017-regulators.pdf",
+                title="Tahmassebi, Amirhessam, Pinker-Domenig, Katja",
+            ),
+            PaperCatalogEntry(
+                file_name="cec-eeg2018.pdf",
+                title="Amirhessam Tahmassebi, Amir H. Gandomi",
+            ),
+        ),
+    )
+    llm = MagicMock()
+    llm.complete.return_value = SimpleNamespace(
+        text="Amirhessam Tahmassebi is the main author of this library.",
+    )
+
+    class _BoomEngine:
+        def query(self, question: str) -> Any:
+            _ = question
+            raise AssertionError("vector RAG must not run for author questions")
+
+    result = ask(
+        question="who is the main author",
+        config=config,
+        query_engine=_BoomEngine(),
+        catalog=catalog,
+        llm=llm,
+    )
+    llm.complete.assert_called_once()
+    prompt = str(llm.complete.call_args.args[0])
+    assert_that(prompt).contains("identifying authors")
+    assert_that(prompt).contains("Tahmassebi")
+    assert_that(result.answer).contains("Amirhessam Tahmassebi")
 
 
 def test_ask__corpus_question__loads_catalog_and_llm(tmp_path) -> None:
@@ -208,6 +263,68 @@ def test_prose_postprocessor__empty_and_under_keep() -> None:
     first = SimpleNamespace(get_content=lambda: _PROSE_CHUNK)
     kept = processor._postprocess_nodes(nodes=[first])
     assert_that(kept).is_equal_to([first])
+
+
+_THANKS_CHUNK = (
+    "The authors would like to thank Tessa Daniels for the careful revision "
+    "of the manuscript. Additional colleagues provided comments on earlier "
+    "drafts of this SPIE proceedings paper on spatio-temporal analysis."
+)
+_AUTHOR_CHUNK = (
+    "Brian M. Cullum, Douglas Kiehl, Eric S. McLamore wrote this SPIE paper "
+    "on regulators of microbial communities in soil and water systems with "
+    "supervised learning methods applied to sensor data."
+)
+_AUTHOR_LATE_CHUNK = (
+    "Corresponding authors appear in the footer of later pages in this "
+    "proceedings volume along with affiliations for the imaging group and "
+    "the university laboratory that hosted the experiments."
+)
+_EDITOR_CHUNK = (
+    "Smart Biomedical and Physiological Sensor Technology XIV, edited by "
+    "Brian M. Cullum, Douglas Kiehl, Eric S. McLamore, Proc. of SPIE Vol. "
+    "10216, 1021605 with a CCC code for this proceedings paper on sensors."
+)
+
+
+def test_prose_postprocessor__author_question__drops_thanks_and_sorts_pages() -> None:
+    thanks = SimpleNamespace(
+        get_content=lambda: _THANKS_CHUNK,
+        metadata={"file_name": "spie.pdf", "page": 11},
+    )
+    late = SimpleNamespace(
+        get_content=lambda: _AUTHOR_LATE_CHUNK,
+        node=SimpleNamespace(metadata={"file_name": "spie.pdf", "page": 9}),
+    )
+    editors = SimpleNamespace(
+        get_content=lambda: _EDITOR_CHUNK,
+        metadata={"file_name": "spie.pdf", "page": 2},
+    )
+    authors = SimpleNamespace(
+        get_content=lambda: _AUTHOR_CHUNK,
+        metadata={"file_name": "spie.pdf", "page": 2},
+    )
+    missing = SimpleNamespace(get_content=lambda: _PROSE_CHUNK)
+    none_meta = SimpleNamespace(get_content=lambda: _PROSE_CHUNK, metadata=None)
+    processor = ProseNodePostprocessor(keep=5)
+    kept = processor._postprocess_nodes(
+        nodes=[thanks, late, editors, missing, authors, none_meta],
+        query_bundle=SimpleNamespace(query_str="who is the main author"),
+    )
+    assert_that(kept).is_equal_to([authors, late, missing, none_meta])
+
+
+def test_prose_postprocessor__author_question__keeps_thanks_when_only_hit() -> None:
+    thanks = SimpleNamespace(
+        get_content=lambda: _THANKS_CHUNK,
+        metadata={"file_name": "spie.pdf", "page": 11},
+    )
+    processor = ProseNodePostprocessor(keep=1)
+    kept = processor._postprocess_nodes(
+        nodes=[thanks],
+        query_bundle=SimpleNamespace(query_str="who wrote this"),
+    )
+    assert_that(kept).is_equal_to([thanks])
 
 
 def test_scored_node_text__node_text_attribute() -> None:

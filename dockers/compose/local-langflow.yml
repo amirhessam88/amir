@@ -1,0 +1,14 @@
+# Visual LangChain studio — not part of papers-rag.
+# Prefer: poe run-langflow  (no Docker; uv tool run)
+# This file is optional if you already have Docker:
+#   docker compose -f dockers/compose/local-langflow.yml up
+services:
+  langflow:
+    image: langflowai/langflow:latest
+    ports:
+      - "7860:7860"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    volumes:
+      - ../../.data/langflow:/data
+      - ../../assets/pdf/papers:/app/papers:ro

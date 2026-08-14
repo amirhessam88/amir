@@ -18,6 +18,7 @@ from rag.core.config import (
     find_repo_root,
     load_repo_dotenv,
 )
+from rag.core.strategy import RAG_STRATEGY_ENV, RagStrategy
 
 
 def test_find_repo_root__from_lib_src__returns_workspace() -> None:
@@ -38,12 +39,39 @@ def test_rag_config_from_env__defaults__resolve_under_repo(monkeypatch) -> None:
     monkeypatch.delenv(PAPERS_DIR_ENV, raising=False)
     monkeypatch.delenv(CHROMA_DIR_ENV, raising=False)
     monkeypatch.delenv(OPENAI_MODEL_ENV, raising=False)
+    monkeypatch.delenv(RAG_STRATEGY_ENV, raising=False)
     root = find_repo_root()
     config = RagConfig.from_env(repo_root=root)
     assert_that(config.papers_dir).is_equal_to((root / "assets" / "pdf" / "papers").resolve())
-    assert_that(config.chroma_dir).is_equal_to((root / ".data" / "chroma" / "papers").resolve())
+    assert_that(config.chroma_dir).is_equal_to(
+        (root / ".data" / "indexes" / "llamaindex").resolve(),
+    )
     assert_that(config.llm_model_name).is_equal_to(DEFAULT_LLM_MODEL)
     assert_that(config.embed_model_name).is_equal_to(DEFAULT_EMBED_MODEL)
+    assert_that(config.strategy).is_equal_to(RagStrategy.LLAMAINDEX)
+
+
+def test_rag_config_from_env__strategy_env__scopes_index_dir(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.delenv(CHROMA_DIR_ENV, raising=False)
+    monkeypatch.setenv(RAG_STRATEGY_ENV, RagStrategy.LANGCHAIN.value)
+    config = RagConfig.from_env(repo_root=tmp_path)
+    assert_that(config.strategy).is_equal_to(RagStrategy.LANGCHAIN)
+    assert_that(config.chroma_dir).is_equal_to(
+        (tmp_path / ".data" / "indexes" / "langchain").resolve(),
+    )
+
+
+def test_rag_config_from_env__strategy_arg__wins_over_env(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.delenv(CHROMA_DIR_ENV, raising=False)
+    monkeypatch.setenv(RAG_STRATEGY_ENV, RagStrategy.LLAMAINDEX.value)
+    config = RagConfig.from_env(repo_root=tmp_path, strategy=RagStrategy.LANGCHAIN)
+    assert_that(config.strategy).is_equal_to(RagStrategy.LANGCHAIN)
+    assert_that(config.chroma_dir).is_equal_to(
+        (tmp_path / ".data" / "indexes" / "langchain").resolve(),
+    )
 
 
 def test_rag_config_from_env__overrides__honor_env(monkeypatch, tmp_path: Path) -> None:
@@ -75,6 +103,7 @@ def test_rag_config_from_env__relative_paths__resolve_under_repo(
 def test_rag_config_from_env__discovers_repo_root(monkeypatch) -> None:
     monkeypatch.delenv(PAPERS_DIR_ENV, raising=False)
     monkeypatch.delenv(CHROMA_DIR_ENV, raising=False)
+    monkeypatch.delenv(RAG_STRATEGY_ENV, raising=False)
     config = RagConfig.from_env()
     root = find_repo_root()
     assert_that(config.papers_dir).is_equal_to((root / "assets" / "pdf" / "papers").resolve())

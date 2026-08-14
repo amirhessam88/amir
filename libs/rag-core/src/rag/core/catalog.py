@@ -186,7 +186,7 @@ def catalog_from_documents(
     pdf_paths : sequence of Path
         Source PDFs (defines order and completeness).
     documents : sequence
-        LlamaIndex documents with ``file_name`` metadata.
+        Page-like objects with ``file_name`` metadata and ``text``.
 
     Returns
     -------
@@ -269,7 +269,7 @@ def load_paper_catalog(*, config: RagConfig) -> PaperCatalog:
             return PaperCatalog.from_json(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError:
             pass
-    from rag.core.ingest import list_pdf_paths
+    from rag.core.loaders import list_pdf_paths
 
     paths = list_pdf_paths(papers_dir=config.papers_dir)
     return PaperCatalog(
