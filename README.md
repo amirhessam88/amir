@@ -1,4 +1,4 @@
-# 🧠 amir
+<h1 align="center"><em>amir</em>: My AI Portfolio</h1>
 
 <p align="center">
   <img src="assets/img/logo_color_clear.png" alt="amir" width="128" />
@@ -11,8 +11,8 @@
 <p align="center">
   <a href="https://github.com/amirhessam88/amir/actions/workflows/ci.yml"><img alt="ci" src="https://github.com/amirhessam88/amir/actions/workflows/ci.yml/badge.svg" /></a>
   <a href="https://github.com/amirhessam88/amir/actions/workflows/docs.yml"><img alt="docs" src="https://github.com/amirhessam88/amir/actions/workflows/docs.yml/badge.svg" /></a>
-  <a href="https://pypi.org/project/amir/"><img alt="PyPI" src="https://img.shields.io/pypi/v/amir.svg" /></a>
   <a href="https://codecov.io/gh/amirhessam88/amir"><img alt="codecov" src="https://codecov.io/gh/amirhessam88/amir/graph/badge.svg?token=BAZKDIK929" /></a>
+  <a href="https://pypi.org/project/amir/"><img alt="PyPI" src="https://img.shields.io/pypi/v/amir.svg" /></a>
   <a href="https://www.python.org/downloads/"><img alt="Python 3.11–3.13" src="https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-3776AB?logo=python&logoColor=white" /></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-green.svg" /></a>
   <a href="https://amirhessam88.github.io/amir/"><img alt="Docs site" src="https://img.shields.io/badge/docs-GitHub%20Pages-3d9b6a" /></a>
