@@ -1,0 +1,16 @@
+# Local Papers RAG stack.
+# Usage (from repo root):
+#   docker compose -f dockers/compose/local-rag.yml up --build
+services:
+  papers-rag:
+    build:
+      context: ../..
+      dockerfile: dockers/templates/streamlit-app/Dockerfile
+    ports:
+      - "8501:8501"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      CHROMA_DIR: /data/chroma/papers
+      PAPERS_DIR: /app/assets/pdf/papers
+    volumes:
+      - ../../.data/chroma/papers:/data/chroma/papers

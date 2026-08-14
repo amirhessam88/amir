@@ -1,0 +1,30 @@
+---
+description: Monorepo directory contracts, import DAG, naming map
+alwaysApply: true
+---
+
+# Monorepo topology
+
+## Directories
+
+- `apps/` — deployable UIs/CLIs (may depend on `libs/*` only)
+- `libs/` — shared packages (org kebab distro → nested import)
+- `projects/` — domain jobs / ingest (may depend on `libs/*` only)
+- `services/` — reserved for future network services
+- `tools/` — `devtools/` + `buildtools/` entrypoints + `resources/` configs, wired by root `poe` tasks
+- `dockers/` — shared images / compose
+- `docs/` — landing + architecture portal
+
+## Import DAG
+
+- ✅ `apps|projects|services → libs`
+- ❌ no app ↔ service, no lib → app/project
+
+## Naming
+
+`libs/rag-core` → import `rag.core` (replace `-` with `.` / `/`).
+
+## New leaves
+
+Hand-add: `pyproject.toml`, `src/`, `tests/`, `docs/`, `ci.yml`, landing card under the matching topology section.
+See skill `add-product-leaf` and `docs/ai/add-product-leaf.md`.

@@ -1,0 +1,56 @@
+####################################################################################################
+# Default CI on PRs / push — full monorepo check + test
+####################################################################################################
+name: ci
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  ci:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-latest", "macos-latest"]
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Install Dependencies
+        run: uv sync --locked --all-groups
+
+      - name: Install Poe the Poet
+        run: uv tool install poethepoet
+
+      - name: Lint
+        run: poe check
+
+      - name: Test
+        run: poe test
+
+      - name: Upload coverage
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v5
+        with:
+          files: xmlcov/coverage.xml
+          flags: unittests
+          name: poe-test
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          disable_search: true

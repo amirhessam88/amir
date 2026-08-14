@@ -1,0 +1,4 @@
+working-directory: apps/papers-rag
+package: papers-rag
+python-versions: ["3.11", "3.12", "3.13"]
+run-docs: true

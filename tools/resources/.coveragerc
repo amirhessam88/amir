@@ -1,0 +1,29 @@
+# Reference: https://coverage.readthedocs.io/en/latest/
+
+[run]
+branch = True
+parallel = True
+source =
+    amir
+    rag.core
+    papers_rag
+    papers_ingest
+omit =
+    */tests/*
+    */docs/*
+    */__pycache__/*
+
+[report]
+show_missing = True
+fail_under = 100
+exclude_lines =
+    pragma: no cover
+    if TYPE_CHECKING:
+    raise NotImplementedError
+    if __name__ == .__main__.:
+
+[html]
+directory = htmlcov
+
+[xml]
+output = xmlcov/coverage.xml

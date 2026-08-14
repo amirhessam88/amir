@@ -1,0 +1,5 @@
+# Leaf CI values for libs/rag-core (consumed by reusable workflow stubs).
+working-directory: libs/rag-core
+package: rag-core
+python-versions: ["3.11", "3.12", "3.13"]
+run-docs: true

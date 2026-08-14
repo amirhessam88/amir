@@ -1,0 +1,60 @@
+---
+description: Prefer Enums / typed constants over magic strings and ints
+alwaysApply: true
+---
+
+# Enums and constants
+
+Across the monorepo, avoid scattering magic strings, ints, or other literals that
+encode a closed set of meanings. Prefer **`Enum` / `StrEnum` / `IntEnum`** (or a
+small typed constant module) so call sites stay readable and mypy-checked.
+
+## Prefer
+
+```python
+# BAD
+role = "assistant"
+if status == 2:
+    ...
+
+# GOOD
+class ChatRole(StrEnum):
+    USER = "user"
+    ASSISTANT = "assistant"
+
+class JobStatus(IntEnum):
+    PENDING = 1
+    RUNNING = 2
+    DONE = 3
+
+role = ChatRole.ASSISTANT
+if status is JobStatus.RUNNING:
+    ...
+```
+
+## When to use what
+
+| Shape | Use for |
+|-------|---------|
+| `enum.StrEnum` | Closed string vocabularies (roles, modes, providers, CLI choices) |
+| `enum.IntEnum` / `enum.Enum` | Closed numeric or mixed symbolic sets |
+| `Final` / module-level named constants | Single values reused often that are **not** a set of alternatives (e.g. default model id) |
+| Dataclass / config fields | Runtime-configurable values from env — not enums |
+
+## Guidelines
+
+- If the same literal appears in more than one place, or is compared/branched on, lift it.
+- Name the enum after the concept (`ChatRole`, not `Constants`).
+- Member names are `UPPER_SNAKE`; values match the external wire format when needed.
+- Pass enum members at call sites; convert at boundaries (JSON, env, Click) with
+  `ChatRole(value)` / `.value` as appropriate.
+- Prefer `StrEnum` over bare `str` unions when the set is closed and owned by us.
+
+## Allowed exceptions
+
+- True one-off literals in a single expression (`open("r")`, HTTP `200` in a test)
+- Framework / vendor APIs that require raw strings or ints by design
+- Pytest markers and very local test fixtures
+- Doc / user-facing prose strings
+
+When in doubt, make an enum.

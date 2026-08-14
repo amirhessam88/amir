@@ -1,0 +1,22 @@
+name: projects/papers-ingest
+
+on:
+  pull_request:
+    paths:
+      - "projects/papers-ingest/**"
+      - "libs/rag-core/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/_python-leaf.yml"
+      - ".github/workflows/projects-papers-ingest.yml"
+  push:
+    branches: ["master"]
+    paths:
+      - "projects/papers-ingest/**"
+      - "libs/rag-core/**"
+
+jobs:
+  python:
+    uses: ./.github/workflows/_python-leaf.yml
+    with:
+      working-directory: projects/papers-ingest

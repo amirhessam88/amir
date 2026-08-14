@@ -1,0 +1,33 @@
+---
+description: Prefer keyword (named) arguments over positional calls
+alwaysApply: true
+---
+
+# Named arguments
+
+Across the whole monorepo (`libs/`, `apps/`, `projects/`, `services/`, `tools/`, `tests/`),
+prefer **keyword arguments** at call sites for readability.
+
+```python
+# BAD
+ask(question, config)
+ingest(pdf_dir, config, reset)
+
+# GOOD
+ask(question=question, config=config)
+ingest(pdf_dir=pdf_dir, config=config, reset=reset)
+```
+
+## API definitions
+
+- For public functions/methods with **two or more** parameters (not counting `self` / `cls`), prefer a leading `*`.
+- Multi-field dataclasses should use `@dataclass(kw_only=True)` (or `frozen=True, kw_only=True`).
+
+## Allowed positional exceptions
+
+- Single-argument calls: `Path(path)`, `list(x)`, `str(x)`
+- Python builtins where kwargs are unusual (`len(x)`, `isinstance(x, T)`)
+- Framework APIs that are positional by design (Click, Streamlit widgets)
+- `assert_that(value)` (assertpy entry)
+
+When in doubt, use names.

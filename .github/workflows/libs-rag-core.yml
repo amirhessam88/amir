@@ -1,0 +1,23 @@
+name: libs/rag-core
+
+on:
+  pull_request:
+    paths:
+      - "libs/rag-core/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "tools/resources/**"
+      - ".github/workflows/_python-leaf.yml"
+      - ".github/workflows/libs-rag-core.yml"
+  push:
+    branches: ["master"]
+    paths:
+      - "libs/rag-core/**"
+      - "pyproject.toml"
+      - "uv.lock"
+
+jobs:
+  python:
+    uses: ./.github/workflows/_python-leaf.yml
+    with:
+      working-directory: libs/rag-core

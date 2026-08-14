@@ -1,0 +1,21 @@
+---
+description: Prefer assertpy assertions in tests; cover all behavior
+globs: "**/tests/**/*.py"
+alwaysApply: false
+---
+
+# Testing conventions
+
+- Every public function/class path must have corresponding tests.
+- Use **`assertpy`** for assertions — do not use bare `assert` in tests.
+
+```python
+from assertpy import assert_that
+
+assert_that(result.answer).is_not_empty()
+```
+
+- Markers: `slow`, `needs_openai`, `needs_embed`, `integration`.
+- Default `poe test` skips heavy markers.
+- Keep **100%** coverage on product packages (`amir`, `rag.core`, `papers_rag`, `papers_ingest`);
+  `poe test` fails under that gate.
