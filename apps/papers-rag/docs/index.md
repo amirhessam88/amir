@@ -8,6 +8,7 @@ Streamlit chat UI over the papers Chroma index.
 
 pages/runbook
 pages/deploy
+autoapi/papers_rag/index
 ```
 
 ::::{grid} 1 2 2 2
@@ -25,6 +26,13 @@ Local setup, sidebar controls, citations.
 :link-type: doc
 
 Docker and Streamlit Community Cloud.
+:::
+
+:::{grid-item-card} 📚 API
+:link: autoapi/papers_rag/index
+:link-type: doc
+
+Auto-generated reference from numpydoc.
 :::
 
 ::::

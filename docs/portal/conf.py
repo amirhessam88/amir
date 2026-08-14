@@ -5,7 +5,7 @@ from __future__ import annotations
 project = "amir Architecture"
 copyright = "Amirhessam Tahmassebi"
 author = "Amirhessam Tahmassebi"
-release = "0.1.0"
+release = "0.1.1"
 version = release
 language = "en"
 
@@ -26,7 +26,7 @@ source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
 html_theme = "furo"
 html_title = "Architecture"
 html_static_path = ["_static"]
-html_favicon = "../landing/img/logo_color_clear.png"
+html_favicon = "../../assets/img/logo_color_clear.png"
 html_css_files = ["css/custom.css", "css/footer.css"]
 html_show_sphinx = False
 html_theme_options = {

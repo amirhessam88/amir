@@ -4,4 +4,4 @@
 in this distribution. Clone the git repo for the docs portal, toolchain, and PDFs.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"

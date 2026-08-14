@@ -1,6 +1,6 @@
 [project]
 name = "papers-rag"
-version = "0.1.0"
+version = "0.1.1"
 description = "Streamlit chat UI over the papers Chroma index"
 readme = "README.md"
 license = { text = "MIT" }
@@ -9,7 +9,7 @@ authors = [
 ]
 requires-python = ">=3.11,<3.14"
 dependencies = [
-    "rag-core>=0.1.0",
+    "rag-core>=0.1.1",
     "streamlit>=1.37",
     "python-dotenv>=1.0",
 ]

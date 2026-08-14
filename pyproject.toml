@@ -1,6 +1,6 @@
 [project]
 name = "amir"
-version = "0.1.0"
+version = "0.1.1"
 description = "Organizational monorepo for Amir's AI products"
 readme = "README.md"
 license = { text = "MIT" }

@@ -168,7 +168,7 @@ wheels = [
 
 [[package]]
 name = "amir"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "chromadb" },
@@ -2630,7 +2630,7 @@ wheels = [
 
 [[package]]
 name = "papers-ingest"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "projects/papers-ingest" }
 dependencies = [
     { name = "click" },
@@ -2649,7 +2649,7 @@ requires-dist = [
 
 [[package]]
 name = "papers-rag"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "apps/papers-rag" }
 dependencies = [
     { name = "python-dotenv" },
@@ -3263,7 +3263,7 @@ wheels = [
 
 [[package]]
 name = "rag-core"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "libs/rag-core" }
 dependencies = [
     { name = "chromadb" },
