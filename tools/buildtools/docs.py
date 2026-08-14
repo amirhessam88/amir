@@ -59,6 +59,7 @@ def main() -> int:
         else:
             shutil.copy2(path, target)
     print("🏠 copied docs/landing → site/")
+    (SITE / ".nojekyll").touch()
 
     for docs_dir, name in LEAVES:
         if not (docs_dir / "conf.py").is_file():

@@ -42,7 +42,7 @@ main {
 }
 
 .brand h1 {
-  margin: 0 0 0.6rem;
+  margin: 0 0 1rem;
   font-size: clamp(1.9rem, 4vw, 2.6rem);
   letter-spacing: -0.02em;
   font-weight: 700;

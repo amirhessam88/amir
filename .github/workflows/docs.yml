@@ -1,5 +1,9 @@
 ####################################################################################################
 # Docs super-app → GitHub Pages
+#
+# Settings → Pages → Source must be "GitHub Actions" (not "Deploy from a branch").
+# Branch Jekyll from master/root overwrites this artifact and 404s Sphinx pages.
+# Root index.html + .nojekyll are only a hub fallback if source is still "branch".
 ####################################################################################################
 name: docs
 
