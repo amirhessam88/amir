@@ -7,9 +7,10 @@ CLI that builds the local Chroma index from `assets/pdf/papers`.
 :hidden:
 
 pages/runbook
+autoapi/papers_ingest/index
 ```
 
-::::{grid} 1 1 1 1
+::::{grid} 1 2 2 2
 :gutter: 2
 
 :::{grid-item-card} ▶️ Runbook
@@ -17,6 +18,13 @@ pages/runbook
 :link-type: doc
 
 Flags, rebuild vs append, and troubleshooting.
+:::
+
+:::{grid-item-card} 📚 API
+:link: autoapi/papers_ingest/index
+:link-type: doc
+
+Auto-generated reference from numpydoc.
 :::
 
 ::::

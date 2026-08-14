@@ -123,6 +123,11 @@ def main() -> int:
         else:
             shutil.copy2(path, target)
     print("🏠 copied docs/landing → site/")
+    logo = ROOT / "assets" / "img" / "logo_color_clear.png"
+    if logo.is_file():
+        img_dir = SITE / "img"
+        img_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(logo, img_dir / logo.name)
     (SITE / ".nojekyll").touch()
 
     for docs_dir, name in LEAVES:

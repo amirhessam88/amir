@@ -1,6 +1,6 @@
 [project]
 name = "rag-core"
-version = "0.1.0"
+version = "0.1.1"
 description = "Shared RAG primitives: multi-strategy ingest, Chroma indexes, query, citations"
 readme = "README.md"
 license = { text = "MIT" }

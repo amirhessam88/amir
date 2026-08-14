@@ -48,6 +48,8 @@ class ChatMessageKey(StrEnum):
 MESSAGES_STATE_KEY: Final = "messages"
 STRATEGY_STATE_KEY: Final = "rag_strategy"
 _STREAMLIT_FILE_WATCHER: Final = "none"
+_LOGO_RELATIVE: Final = Path("assets") / "img" / "logo_color_clear.png"
+_FALLBACK_PAGE_ICON: Final = "🧠"
 _SOURCES_EXPANDER_LABEL: Final = "📚 Sources"
 _STRATEGY_LABELS: Final = {
     RagStrategy.LLAMAINDEX: "LlamaIndex",
@@ -75,6 +77,17 @@ def _cached_config() -> RagConfig:
 def _strategy_label(value: str) -> str:
     """Return the sidebar label for a strategy value."""
     return _STRATEGY_LABELS[RagStrategy(value)]
+
+
+def _page_icon() -> str:
+    """Return the repo logo path, or an emoji when assets are missing."""
+    try:
+        logo = find_repo_root() / _LOGO_RELATIVE
+    except FileNotFoundError:
+        return _FALLBACK_PAGE_ICON
+    if logo.is_file():
+        return str(logo)
+    return _FALLBACK_PAGE_ICON
 
 
 def _ensure_api_key() -> None:
@@ -118,7 +131,7 @@ def main() -> None:
     load_repo_dotenv()
     st.set_page_config(
         page_title="Papers RAG",
-        page_icon="🧠",
+        page_icon=_page_icon(),
         layout="wide",
     )
     st.title("🧠 Papers RAG")

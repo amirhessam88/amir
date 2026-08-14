@@ -1,6 +1,6 @@
 [project]
 name = "papers-ingest"
-version = "0.1.0"
+version = "0.1.1"
 description = "CLI to ingest research PDFs into the local Chroma papers index"
 readme = "README.md"
 license = { text = "MIT" }
@@ -9,7 +9,7 @@ authors = [
 ]
 requires-python = ">=3.11,<3.14"
 dependencies = [
-    "rag-core>=0.1.0",
+    "rag-core>=0.1.1",
     "click>=8.1",
     "python-dotenv>=1.0",
     "rich>=13.0",

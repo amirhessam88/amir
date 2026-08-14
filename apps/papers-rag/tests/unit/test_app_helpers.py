@@ -29,6 +29,22 @@ def test_strategy_label() -> None:
     )
 
 
+def test_page_icon__uses_repo_logo() -> None:
+    icon = app_module._page_icon()
+    assert_that(icon).ends_with("logo_color_clear.png")
+    assert_that(Path(icon).is_file()).is_true()
+
+
+def test_page_icon__missing_repo__falls_back() -> None:
+    with patch.object(app_module, "find_repo_root", side_effect=FileNotFoundError("no repo")):
+        assert_that(app_module._page_icon()).is_equal_to(app_module._FALLBACK_PAGE_ICON)
+
+
+def test_page_icon__missing_file__falls_back(tmp_path: Path) -> None:
+    with patch.object(app_module, "find_repo_root", return_value=tmp_path):
+        assert_that(app_module._page_icon()).is_equal_to(app_module._FALLBACK_PAGE_ICON)
+
+
 def test_config_for_strategy__uses_index_dir_when_chroma_unset(
     tmp_path: Path,
     monkeypatch,
