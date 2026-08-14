@@ -25,5 +25,5 @@ Flags, rebuild vs append, and troubleshooting.
 flowchart LR
   PDFs["assets/pdf/papers/*.pdf"] --> CLI["papers-ingest"]
   CLI --> Embed["bge-small local"]
-  Embed --> Chroma[".data/chroma/papers"]
+  Embed --> Chroma[".data/indexes/{strategy}"]
 ```

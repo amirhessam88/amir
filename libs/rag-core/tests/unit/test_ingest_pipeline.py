@@ -7,6 +7,31 @@ from assertpy import assert_that
 
 from rag.core.config import RagConfig
 from rag.core.ingest import IngestResult, build_embed_model, ingest_papers
+from rag.core.strategy import RagStrategy
+
+
+def test_ingest_papers__langchain_strategy__dispatches(tmp_path: Path) -> None:
+    papers = tmp_path / "papers"
+    papers.mkdir()
+    (papers / "a.pdf").write_bytes(b"%PDF-1.4")
+    config = RagConfig(
+        papers_dir=papers,
+        chroma_dir=tmp_path / "chroma",
+        strategy=RagStrategy.LANGCHAIN,
+    )
+    expected = IngestResult(
+        documents=1,
+        nodes=2,
+        chroma_dir=config.chroma_dir,
+        collection_name="papers",
+    )
+    backend = MagicMock()
+    backend.ingest.return_value = expected
+    with patch("rag.core.backends.registry.get_backend", return_value=backend) as getter:
+        result = ingest_papers(config=config, rebuild=True)
+    getter.assert_called_once()
+    assert_that(result).is_equal_to(expected)
+    backend.ingest.assert_called_once()
 
 
 def test_build_embed_model__passes_name(tmp_path: Path) -> None:

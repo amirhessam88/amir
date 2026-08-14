@@ -14,6 +14,7 @@ from llama_index.core.query_engine import BaseQueryEngine
 from llama_index.llms.openai import OpenAI
 from pydantic import Field
 
+from rag.core.backends.registry import get_backend
 from rag.core.catalog import (
     PaperCatalog,
     QueryScope,
@@ -24,6 +25,14 @@ from rag.core.citations import Citation, citations_from_nodes, format_citations
 from rag.core.config import OPENAI_API_KEY_ENV, RagConfig, load_repo_dotenv
 from rag.core.index import load_vector_index
 from rag.core.ingest import build_embed_model
+from rag.core.passage import (
+    QA_GROUNDING_RULES,
+    is_acknowledgement_text,
+    is_author_question,
+    is_proceedings_boilerplate_text,
+    page_from_mapping,
+)
+from rag.core.strategy import RagStrategy
 from rag.core.text_quality import is_prose_text
 
 RETRIEVAL_OVERFETCH: Final = 3
@@ -37,8 +46,9 @@ PAPERS_TEXT_QA_TEMPLATE = PromptTemplate(
     "(a few sentences unless the question needs more). These excerpts are a "
     "retrieved subset — not the full library. Do not say 'all papers' or "
     "'both papers' unless you list every filename you used. If the question "
-    "is about the whole corpus, say this context is too narrow.\n"
-    "Question: {query_str}\n"
+    "is about the whole corpus, say this context is too narrow. "
+    + QA_GROUNDING_RULES
+    + "\nQuestion: {query_str}\n"
     "Answer: ",
 )
 
@@ -57,6 +67,9 @@ PAPERS_REFINE_TEMPLATE = PromptTemplate(
 
 class ProseNodePostprocessor(BaseNodePostprocessor):
     """Keep retrieved chunks that look like readable paper prose.
+
+    Author questions drop acknowledgement / thanks chunks and prefer
+    earlier pages (title-page author lists over end-matter).
 
     Attributes
     ----------
@@ -78,22 +91,45 @@ class ProseNodePostprocessor(BaseNodePostprocessor):
         nodes : list
             Retrieved ``NodeWithScore`` objects.
         query_bundle : object or None
-            Unused; required by LlamaIndex.
+            LlamaIndex query bundle; used to detect author questions.
 
         Returns
         -------
         list
             Prose nodes in retrieval order, length at most ``keep``.
         """
-        _ = query_bundle
+        question = str(getattr(query_bundle, "query_str", "") or "")
         selected: list[Any] = []
         for item in nodes:
-            if not is_prose_text(text=_scored_node_text(item=item)):
+            text = _scored_node_text(item=item)
+            if not is_prose_text(text=text):
                 continue
             selected.append(item)
-            if len(selected) >= self.keep:
-                break
-        return selected
+        if is_author_question(question=question):
+            without_noise = [
+                item
+                for item in selected
+                if not is_acknowledgement_text(text=_scored_node_text(item=item))
+                and not is_proceedings_boilerplate_text(
+                    text=_scored_node_text(item=item),
+                )
+            ]
+            if without_noise:
+                selected = without_noise
+            selected = sorted(selected, key=_scored_node_page)
+        return selected[: self.keep]
+
+
+def _scored_node_page(item: Any) -> int:
+    """Sort key: earlier pages first; missing page sorts last."""
+    for candidate in (item, getattr(item, "node", None)):
+        if candidate is None:
+            continue
+        metadata = dict(getattr(candidate, "metadata", {}) or {})
+        page = page_from_mapping(metadata=metadata)
+        if page is not None:
+            return page
+    return 10_000
 
 
 def _scored_node_text(*, item: Any) -> str:
@@ -240,42 +276,46 @@ CORPUS_SYNTHESIS_PROMPT: Final = (
     "Answer: "
 )
 
+AUTHOR_SYNTHESIS_PROMPT: Final = (
+    "You are identifying authors from a researcher's PDF library.\n"
+    "The catalog below is the COMPLETE set of papers ({paper_count} files).\n"
+    "Each line is a filename plus opening-page text (title and usually authors).\n"
+    "---------------------\n"
+    "{catalog_markdown}\n"
+    "---------------------\n"
+    "SPIE footers like 'edited by' name volume editors, not the paper's authors. "
+    "People thanked for revising a manuscript are not authors. "
+    "If one person is first author or appears on most papers, they are the "
+    "main author of this library — say so, then name frequent co-authors. "
+    "If the question names a specific paper or topic, answer for that paper only. "
+    "Do not invent names that are not in the catalog.\n"
+    "Question: {query_str}\n"
+    "Answer: "
+)
 
-def ask(
+
+def ask_llamaindex(
     *,
     question: str,
     config: RagConfig,
     query_engine: BaseQueryEngine | None = None,
-    catalog: PaperCatalog | None = None,
-    llm: Any | None = None,
 ) -> QueryResult:
-    """Ask a question against the papers index or the full corpus catalog.
-
-    Corpus-level questions (for example "common topic among all papers")
-    skip vector retrieval and synthesize from the paper catalog.
+    """Ask a paper-level question using the LlamaIndex query engine.
 
     Parameters
     ----------
     question : str
         User question.
     config : RagConfig
-        Used when constructing a default engine or loading the catalog.
+        Used when constructing a default engine.
     query_engine : BaseQueryEngine or None
         Injected engine (tests / Streamlit cache).
-    catalog : PaperCatalog or None
-        Injected catalog; otherwise loaded from disk or ``papers_dir``.
-    llm : Any or None
-        Injected chat LLM for corpus synthesis.
 
     Returns
     -------
     QueryResult
         Answer and citations.
     """
-    if classify_query_scope(question=question) is QueryScope.CORPUS:
-        papers = catalog if catalog is not None else load_paper_catalog(config=config)
-        chat_llm = llm if llm is not None else build_llm(config=config)
-        return _ask_corpus(question=question, catalog=papers, llm=chat_llm)
     engine = query_engine or build_query_engine(config=config)
     response = engine.query(question)
     source_nodes = list(getattr(response, "source_nodes", []) or [])
@@ -288,22 +328,79 @@ def ask(
     )
 
 
+def ask(
+    *,
+    question: str,
+    config: RagConfig,
+    query_engine: BaseQueryEngine | None = None,
+    catalog: PaperCatalog | None = None,
+    llm: Any | None = None,
+) -> QueryResult:
+    """Ask a question against the papers index or the full corpus catalog.
+
+    Corpus-level questions (for example "common topic among all papers")
+    skip vector retrieval and synthesize from the paper catalog. Author
+    questions use the same catalog (opening-page title/author snippets)
+    instead of similarity hits, which often match SPIE volume editors.
+
+    Parameters
+    ----------
+    question : str
+        User question.
+    config : RagConfig
+        Used when constructing a default engine or loading the catalog.
+    query_engine : BaseQueryEngine or None
+        Injected LlamaIndex engine (tests / Streamlit cache).
+    catalog : PaperCatalog or None
+        Injected catalog; otherwise loaded from disk or ``papers_dir``.
+    llm : Any or None
+        Injected chat LLM for corpus synthesis.
+
+    Returns
+    -------
+    QueryResult
+        Answer and citations.
+    """
+    author_question = is_author_question(question=question)
+    corpus_question = classify_query_scope(question=question) is QueryScope.CORPUS
+    if author_question or corpus_question:
+        papers = catalog if catalog is not None else load_paper_catalog(config=config)
+        chat_llm = llm if llm is not None else build_llm(config=config)
+        prompt = AUTHOR_SYNTHESIS_PROMPT if author_question else CORPUS_SYNTHESIS_PROMPT
+        return _ask_corpus(
+            question=question,
+            catalog=papers,
+            llm=chat_llm,
+            prompt=prompt,
+        )
+    if query_engine is not None or config.strategy is RagStrategy.LLAMAINDEX:
+        return ask_llamaindex(
+            question=question,
+            config=config,
+            query_engine=query_engine,
+        )
+    return get_backend(strategy=config.strategy).ask(question=question, config=config)
+
+
 def _ask_corpus(
     *,
     question: str,
     catalog: PaperCatalog,
     llm: Any,
+    prompt: str = CORPUS_SYNTHESIS_PROMPT,
 ) -> QueryResult:
     """Synthesize an answer from the full paper catalog.
 
     Parameters
     ----------
     question : str
-        Corpus-level question.
+        Catalog-level question.
     catalog : PaperCatalog
         Complete paper list.
     llm : Any
         LlamaIndex-style LLM with ``complete``.
+    prompt : str
+        Template with ``paper_count``, ``catalog_markdown``, and ``query_str``.
 
     Returns
     -------
@@ -319,12 +416,12 @@ def _ask_corpus(
         raise FileNotFoundError(
             "Paper catalog is empty. Run `poe ingest-papers` to build it.",
         )
-    prompt = CORPUS_SYNTHESIS_PROMPT.format(
+    filled = prompt.format(
         paper_count=len(catalog.papers),
         catalog_markdown=catalog.to_markdown(),
         query_str=question,
     )
-    response = llm.complete(prompt)
+    response = llm.complete(filled)
     answer = str(getattr(response, "text", None) or response).strip()
     citations = _citations_from_catalog(catalog=catalog)
     return QueryResult(

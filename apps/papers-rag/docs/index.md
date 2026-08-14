@@ -24,7 +24,7 @@ Local setup, sidebar controls, citations.
 :link: pages/deploy
 :link-type: doc
 
-Docker + Streamlit Community Cloud notes.
+Docker and Streamlit Community Cloud.
 :::
 
 ::::

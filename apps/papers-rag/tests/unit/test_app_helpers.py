@@ -2,15 +2,48 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 from assertpy import assert_that
 
 from papers_rag import __version__
 from papers_rag import app as app_module
 from rag.core import IndexMissingError, QueryResult, RagConfig
 from rag.core.config import OPENAI_API_KEY_ENV, OPENAI_MODEL_ENV
+
+
+@pytest.fixture(autouse=True)
+def _stub_backend() -> Iterator[None]:
+    backend = MagicMock()
+    backend.is_ready.return_value = True
+    with patch.object(app_module, "get_backend", return_value=backend):
+        yield
+
+
+def test_strategy_label() -> None:
+    assert_that(app_module._strategy_label(app_module.RagStrategy.LANGCHAIN.value)).is_equal_to(
+        "LangChain",
+    )
+
+
+def test_config_for_strategy__uses_index_dir_when_chroma_unset(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    app_module._cached_config.cache_clear()
+    monkeypatch.delenv("CHROMA_DIR", raising=False)
+    monkeypatch.setenv("PAPERS_DIR", str(tmp_path / "papers"))
+    config = app_module._config_for_strategy(
+        strategy=app_module.RagStrategy.LANGCHAIN,
+        top_k=3,
+    )
+    assert_that(config.strategy).is_equal_to(app_module.RagStrategy.LANGCHAIN)
+    assert_that(config.chroma_dir.name).is_equal_to("langchain")
+    assert_that(config.similarity_top_k).is_equal_to(3)
+    app_module._cached_config.cache_clear()
 
 
 def test_version__is_semver_like() -> None:
@@ -97,6 +130,7 @@ def test_get_query_engine__builds_tuned_config(tmp_path: Path, monkeypatch) -> N
     assert_that(got_engine).is_equal_to(engine)
     assert_that(tuned.similarity_top_k).is_equal_to(7)
     assert_that(tuned.llm_model_name).is_equal_to("gpt-test")
+    assert_that(tuned.strategy).is_equal_to(app_module.RagStrategy.LLAMAINDEX)
     build.assert_called_once()
     app_module._cached_config.cache_clear()
 
@@ -113,6 +147,29 @@ def test_main__no_prompt__returns_early(tmp_path: Path) -> None:
     ):
         app_module.main()
     assert_that(st.session_state[app_module.MESSAGES_STATE_KEY]).is_empty()
+
+
+def test_main__strategy_change__clears_chat(tmp_path: Path) -> None:
+    st = _fake_streamlit(prompt=None)
+    st.selectbox.return_value = app_module.RagStrategy.LANGCHAIN.value
+    st.session_state[app_module.STRATEGY_STATE_KEY] = app_module.RagStrategy.LLAMAINDEX.value
+    st.session_state[app_module.MESSAGES_STATE_KEY] = [
+        {
+            app_module.ChatMessageKey.ROLE: app_module.ChatRole.USER,
+            app_module.ChatMessageKey.CONTENT: "hi",
+        },
+    ]
+    with (
+        patch.object(app_module, "st", st),
+        patch.object(app_module, "_cached_config", return_value=_config(tmp_path)),
+        patch.object(app_module, "get_backend") as backend_factory,
+    ):
+        backend_factory.return_value.is_ready.return_value = False
+        app_module.main()
+    assert_that(st.session_state[app_module.MESSAGES_STATE_KEY]).is_empty()
+    assert_that(st.session_state[app_module.STRATEGY_STATE_KEY]).is_equal_to(
+        app_module.RagStrategy.LANGCHAIN.value,
+    )
 
 
 def test_main__clear_chat__reruns(tmp_path: Path) -> None:
@@ -159,6 +216,29 @@ def test_main__ask_success__appends_assistant(tmp_path: Path) -> None:
     assert_that(messages[-1][app_module.ChatMessageKey.ROLE]).is_equal_to(
         app_module.ChatRole.ASSISTANT,
     )
+    st.expander.assert_called_with(
+        app_module._SOURCES_EXPANDER_LABEL,
+        expanded=False,
+    )
+
+
+def test_main__langchain_ask__skips_query_engine(tmp_path: Path) -> None:
+    st = _fake_streamlit(prompt="What is a driver node?")
+    st.selectbox.return_value = app_module.RagStrategy.LANGCHAIN.value
+    result = QueryResult(answer="Via LC.", citations=[], citations_markdown="")
+    with (
+        patch.object(app_module, "st", st),
+        patch.object(app_module, "_cached_config", return_value=_config(tmp_path)),
+        patch.object(app_module, "get_backend") as backend_factory,
+        patch.object(app_module, "_get_query_engine") as get_engine,
+        patch.object(app_module, "ask", return_value=result),
+        patch.object(app_module, "_ensure_api_key"),
+    ):
+        backend_factory.return_value.is_ready.return_value = True
+        app_module.main()
+    get_engine.assert_not_called()
+    messages = st.session_state[app_module.MESSAGES_STATE_KEY]
+    assert_that(messages[-1][app_module.ChatMessageKey.CONTENT]).is_equal_to("Via LC.")
 
 
 def test_main__ask_success__without_citations(tmp_path: Path) -> None:
@@ -247,7 +327,10 @@ def test_main__history_with_citations__renders_expander(tmp_path: Path) -> None:
         patch.object(app_module, "_cached_config", return_value=_config(tmp_path)),
     ):
         app_module.main()
-    st.expander.assert_called()
+    st.expander.assert_called_with(
+        app_module._SOURCES_EXPANDER_LABEL,
+        expanded=False,
+    )
 
 
 class _SessionState(dict):
@@ -268,6 +351,7 @@ def _fake_streamlit(*, prompt: str | None, clear_clicked: bool = False) -> Magic
     st.session_state = _SessionState()
     st.chat_input.return_value = prompt
     st.slider.return_value = 5
+    st.selectbox.return_value = app_module.RagStrategy.LLAMAINDEX.value
     st.button.return_value = clear_clicked
     st.sidebar = MagicMock()
     st.sidebar.__enter__ = MagicMock(return_value=st.sidebar)

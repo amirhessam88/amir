@@ -1,6 +1,7 @@
 # 🌱 Add product leaf checklist
 
-See also `.cursor/skills/add-product-leaf/SKILL.md`.
+See also `.cursor/skills/add-product-leaf/SKILL.md` and
+[Building an Org Monorepo](https://www.amirhessam.com/two-cents/building-an-org-monorepo.html).
 
 1. Pick `apps/` | `libs/` | `projects/` | `services/`
 2. `pyproject.toml` + src layout + workspace source

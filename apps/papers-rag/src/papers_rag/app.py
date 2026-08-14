@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+from dataclasses import replace
 from enum import StrEnum
 from functools import lru_cache
 from pathlib import Path
@@ -14,10 +15,19 @@ import streamlit as st
 from rag.core import (
     IndexMissingError,
     RagConfig,
+    RagStrategy,
     ask,
     build_query_engine,
 )
-from rag.core.config import OPENAI_API_KEY_ENV, OPENAI_MODEL_ENV, load_repo_dotenv
+from rag.core.backends.registry import get_backend
+from rag.core.config import (
+    CHROMA_DIR_ENV,
+    OPENAI_API_KEY_ENV,
+    OPENAI_MODEL_ENV,
+    find_repo_root,
+    load_repo_dotenv,
+)
+from rag.core.strategy import index_dir_for
 
 
 class ChatRole(StrEnum):
@@ -36,7 +46,13 @@ class ChatMessageKey(StrEnum):
 
 
 MESSAGES_STATE_KEY: Final = "messages"
+STRATEGY_STATE_KEY: Final = "rag_strategy"
 _STREAMLIT_FILE_WATCHER: Final = "none"
+_SOURCES_EXPANDER_LABEL: Final = "📚 Sources"
+_STRATEGY_LABELS: Final = {
+    RagStrategy.LLAMAINDEX: "LlamaIndex",
+    RagStrategy.LANGCHAIN: "LangChain",
+}
 
 
 def _secrets_api_key() -> str | None:
@@ -56,6 +72,11 @@ def _cached_config() -> RagConfig:
     return RagConfig.from_env()
 
 
+def _strategy_label(value: str) -> str:
+    """Return the sidebar label for a strategy value."""
+    return _STRATEGY_LABELS[RagStrategy(value)]
+
+
 def _ensure_api_key() -> None:
     load_repo_dotenv()
     if os.environ.get(OPENAI_API_KEY_ENV, "").strip():
@@ -65,20 +86,30 @@ def _ensure_api_key() -> None:
         os.environ[OPENAI_API_KEY_ENV] = from_secrets
 
 
-@st.cache_resource(show_spinner="Loading query engine…")
-def _get_query_engine(*, top_k: int) -> tuple[Any, RagConfig]:
-    _ensure_api_key()
-    config = _cached_config()
-    tuned = RagConfig(
-        papers_dir=config.papers_dir,
-        chroma_dir=config.chroma_dir,
-        collection_name=config.collection_name,
-        embed_model_name=config.embed_model_name,
-        llm_model_name=os.environ.get(OPENAI_MODEL_ENV, config.llm_model_name),
-        chunk_size=config.chunk_size,
-        chunk_overlap=config.chunk_overlap,
+def _config_for_strategy(*, strategy: RagStrategy, top_k: int) -> RagConfig:
+    """Build a tuned config for the sidebar strategy and top-k."""
+    base = _cached_config()
+    if os.environ.get(CHROMA_DIR_ENV):
+        chroma = base.chroma_dir
+    else:
+        chroma = index_dir_for(repo_root=find_repo_root(), strategy=strategy)
+    return replace(
+        base,
+        strategy=strategy,
+        chroma_dir=chroma,
         similarity_top_k=top_k,
+        llm_model_name=os.environ.get(OPENAI_MODEL_ENV, base.llm_model_name),
     )
+
+
+@st.cache_resource(show_spinner="Loading query engine…")
+def _get_query_engine(
+    *,
+    top_k: int,
+    strategy: str = RagStrategy.LLAMAINDEX.value,
+) -> tuple[Any, RagConfig]:
+    _ensure_api_key()
+    tuned = _config_for_strategy(strategy=RagStrategy(strategy), top_k=top_k)
     return build_query_engine(config=tuned), tuned
 
 
@@ -93,25 +124,43 @@ def main() -> None:
     st.title("🧠 Papers RAG")
     st.caption(
         "Ask questions grounded in the research PDFs under `assets/pdf/papers`. "
-        "Factoid questions retrieve chunks; questions about *all papers* "
-        "(common theme, whole corpus) use the full paper catalog. "
-        "Embeddings + Chroma are local; chat uses your OpenAI API key.",
+        "Pick a strategy to load that pattern's local index (same PDFs, isolated DBs). "
+        "Factoid questions retrieve chunks; questions about *all papers* or "
+        "*who wrote these* use the full paper catalog. Chat uses your OpenAI API key.",
     )
 
     with st.sidebar:
         st.header("⚙️ Settings")
         config = _cached_config()
-        st.write(f"**LLM:** `{os.environ.get(OPENAI_MODEL_ENV, config.llm_model_name)}`")
-        st.write(f"**Embed:** `{config.embed_model_name}`")
-        st.write(f"**Chroma:** `{config.chroma_dir}`")
+        strategy_value = st.selectbox(
+            "Strategy",
+            options=[item.value for item in RagStrategy],
+            format_func=_strategy_label,
+            help="Each strategy has its own persist dir under .data/indexes/.",
+        )
+        strategy = RagStrategy(str(strategy_value))
+        if (
+            STRATEGY_STATE_KEY in st.session_state
+            and st.session_state[STRATEGY_STATE_KEY] != strategy.value
+        ):
+            st.session_state[MESSAGES_STATE_KEY] = []
+        st.session_state[STRATEGY_STATE_KEY] = strategy.value
         top_k = st.slider(
             "Similarity top-k", min_value=1, max_value=12, value=config.similarity_top_k
         )
+        tuned = _config_for_strategy(strategy=strategy, top_k=top_k)
+        ready = get_backend(strategy=strategy).is_ready(config=tuned)
+        st.write(f"**LLM:** `{tuned.llm_model_name}`")
+        st.write(f"**Embed:** `{tuned.embed_model_name}`")
+        st.write(f"**Chroma:** `{tuned.chroma_dir}`")
+        st.write(f"**Index:** {'ready' if ready else 'empty — ingest first'}")
         if st.button("🗑️ Clear chat"):
             st.session_state[MESSAGES_STATE_KEY] = []
             st.rerun()
         st.markdown(
-            "Run ingest first if the index is empty:\n\n`poe ingest-papers`",
+            "Ingest per strategy:\n\n"
+            "`poe ingest-papers --strategy llamaindex`\n\n"
+            "`poe ingest-papers --strategy langchain`",
         )
 
     if MESSAGES_STATE_KEY not in st.session_state:
@@ -121,7 +170,7 @@ def main() -> None:
         with st.chat_message(message[ChatMessageKey.ROLE]):
             st.markdown(message[ChatMessageKey.CONTENT])
             if message.get(ChatMessageKey.CITATIONS):
-                with st.expander("📚 Sources"):
+                with st.expander(_SOURCES_EXPANDER_LABEL, expanded=False):
                     st.markdown(message[ChatMessageKey.CITATIONS])
 
     prompt = st.chat_input("Ask about the papers…")
@@ -139,9 +188,21 @@ def main() -> None:
 
     with st.chat_message(ChatRole.ASSISTANT):
         try:
-            engine, tuned = _get_query_engine(top_k=top_k)
-            with st.spinner("Retrieving + generating…"):
-                result = ask(question=prompt, config=tuned, query_engine=engine)
+            if strategy is RagStrategy.LLAMAINDEX:
+                engine, query_config = _get_query_engine(
+                    top_k=top_k,
+                    strategy=strategy.value,
+                )
+                with st.spinner("Retrieving + generating…"):
+                    result = ask(
+                        question=prompt,
+                        config=query_config,
+                        query_engine=engine,
+                    )
+            else:
+                _ensure_api_key()
+                with st.spinner("Retrieving + generating…"):
+                    result = ask(question=prompt, config=tuned)
         except IndexMissingError as exc:
             st.error(str(exc))
             return
@@ -154,7 +215,7 @@ def main() -> None:
 
         st.markdown(result.answer)
         if result.citations_markdown:
-            with st.expander("📚 Sources", expanded=True):
+            with st.expander(_SOURCES_EXPANDER_LABEL, expanded=False):
                 st.markdown(result.citations_markdown)
 
     st.session_state[MESSAGES_STATE_KEY].append(

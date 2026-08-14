@@ -18,7 +18,7 @@ autoapi/rag/index
 :link: pages/overview
 :link-type: doc
 
-Pipeline modules and design choices.
+Modules, strategies, routing, and env vars.
 :::
 
 :::{grid-item-card} 🚀 Quick start

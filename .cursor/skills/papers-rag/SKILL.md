@@ -9,7 +9,8 @@ description: Ingest, query, and debug the Papers RAG product (LlamaIndex + Chrom
 
 ```bash
 cp .env.example .env   # OPENAI_API_KEY
-poe ingest-papers
+poe ingest-papers --strategy llamaindex
+poe ingest-papers --strategy langchain   # optional second pattern
 poe run-papers-rag
 ```
 
@@ -27,11 +28,17 @@ poe run-papers-rag
 - Garbled / binary source snippets → old UTF-8 PDF decode; rebuild index.
 - Chart-axis / pyLDAvis junk in sources → figure pages. Rebuild after the
   prose filter (`poe ingest-papers`), then restart Streamlit.
+- Acknowledgements named as “the main author” → thanks/revision chunks
+  outranked title pages. Restart Streamlit (prompt + filter; no re-ingest).
+- SPIE “edited by” volume editors named as authors → author questions now
+  use `catalog.json` (opening-page names), not vector hits. Restart Streamlit.
 - “Both papers” / one-paper answer to “all papers” → need corpus routing.
   Restart Streamlit. Optional: `poe ingest-papers` to refresh `catalog.json`.
 
 ## Code map
 
-- Core: `libs/rag-core/src/rag/core/` (`catalog.py` for corpus questions)
-- Ingest CLI: `projects/papers-ingest/`
-- Streamlit: `apps/papers-rag/src/papers_rag/app.py`
+- Core: `libs/rag-core/src/rag/core/` (`catalog.py` for corpus questions;
+  `backends/` for LlamaIndex / LangChain)
+- Ingest CLI: `projects/papers-ingest/` (`--strategy`)
+- Streamlit: `apps/papers-rag/src/papers_rag/app.py` (sidebar strategy picker)
+- Langflow studio (separate): `poe run-langflow` → http://127.0.0.1:7860

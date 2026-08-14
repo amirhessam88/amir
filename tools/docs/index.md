@@ -1,7 +1,8 @@
 # 🧰 tools
 
 Monorepo tool entrypoints. Root `poe` tasks call files under `devtools/` and
-`buildtools/`; shared configs live in `resources/`.
+`buildtools/`; shared configs live in `resources/`. Single toolchain contract:
+[Building an Org Monorepo](https://www.amirhessam.com/two-cents/building-an-org-monorepo.html).
 
 ```{toctree}
 :maxdepth: 2

@@ -38,6 +38,12 @@ dependencies = [
     "streamlit>=1.37",
     "click>=8.1",
     "rich>=13.0",
+    "langchain>=0.3.0",
+    "langchain-core>=0.3.0",
+    "langchain-chroma>=0.2.0",
+    "langchain-huggingface>=0.1.0",
+    "langchain-openai>=0.2.0",
+    "langchain-text-splitters>=0.3.0",
 ]
 
 [project.scripts]
@@ -177,9 +183,16 @@ cmd = "python tools/buildtools/docs.py"
 # --- product entrypoints ---
 
 [tool.poe.tasks.ingest-papers]
-help = "Ingest assets/pdf/papers into the local Chroma index"
-cmd = "papers-ingest"
+help = "Ingest assets/pdf/papers into a strategy-scoped Chroma index"
+cmd = "papers-ingest --strategy ${strategy}"
+args = [
+    { name = "strategy", options = ["--strategy"], default = "llamaindex", help = "llamaindex, langchain, or all" },
+]
 
 [tool.poe.tasks.run-papers-rag]
 help = "Launch the Papers RAG Streamlit chat app"
 cmd = "papers-rag"
+
+[tool.poe.tasks.run-langflow]
+help = "Launch the Langflow visual studio (uv tool, port 7860)"
+cmd = "python tools/devtools/langflow.py"
